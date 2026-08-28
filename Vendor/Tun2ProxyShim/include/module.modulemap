@@ -1,0 +1,5 @@
+framework module Tun2ProxyShim {
+    umbrella header "Tun2ProxyShim.h"
+    export *
+    module * { export * }
+}

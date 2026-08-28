@@ -6,6 +6,53 @@ import XCTest
 @testable import TunnelClient
 
 final class ConfigTests: XCTestCase {
+    func testSocksInboundBuilderReplacesUntrustedInbound() throws {
+        let source: [String: Any] = [
+            "inbounds": [[
+                "listen": "0.0.0.0",
+                "port": 80,
+                "protocol": "http"
+            ]],
+            "outbounds": [["protocol": "freedom", "tag": "direct"]]
+        ]
+        let credentials = LocalSocksCredentials(
+            port: 10_808,
+            username: "local-user",
+            password: "local-password"
+        )
+
+        let result = try XraySocksInboundBuilder.replacingInbounds(
+            in: source,
+            credentials: credentials
+        )
+        let inbounds = try XCTUnwrap(result["inbounds"] as? [[String: Any]])
+        let inbound = try XCTUnwrap(inbounds.first)
+        let settings = try XCTUnwrap(inbound["settings"] as? [String: Any])
+        let accounts = try XCTUnwrap(settings["accounts"] as? [[String: String]])
+
+        XCTAssertEqual(inbounds.count, 1)
+        XCTAssertEqual(inbound["listen"] as? String, "127.0.0.1")
+        XCTAssertEqual(inbound["port"] as? Int, credentials.port)
+        XCTAssertEqual(inbound["protocol"] as? String, "socks")
+        XCTAssertEqual(inbound["tag"] as? String, "in_proxy")
+        XCTAssertEqual(settings["auth"] as? String, "password")
+        XCTAssertEqual(settings["udp"] as? Bool, true)
+        XCTAssertEqual(accounts, [[
+            "user": credentials.username,
+            "pass": credentials.password
+        ]])
+        XCTAssertEqual((result["outbounds"] as? [[String: String]])?.first?["tag"], "direct")
+    }
+
+    func testSocksInboundBuilderRejectsInvalidCredentials() {
+        XCTAssertThrowsError(try XraySocksInboundBuilder.replacingInbounds(
+            in: ["outbounds": [["protocol": "freedom"]]],
+            credentials: LocalSocksCredentials(port: 0, username: "", password: "")
+        )) { error in
+            XCTAssertEqual(error as? ClientError, .unsupportedConfiguration)
+        }
+    }
+
     func testExtractsOnlyProxyServerEndpointsForRouteExclusions() throws {
         let config: [String: Any] = [
             "outbounds": [

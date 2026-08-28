@@ -26,14 +26,17 @@ non-production test values.
 
 The `iOS client IPA` workflow runs security/parser tests and a real Darwin TUN
 round-trip probe on a GitHub-hosted Mac before creating the unsigned artifact.
+The Packet Tunnel runs Xray as a loopback SOCKS server and builds a small
+managed wrapper around MIT-licensed tun2proxy for TUN-to-SOCKS transport.
 The result must be re-signed with an Apple certificate and provisioning profiles
 that authorize `packet-tunnel-provider` for both the app and its embedded
 extension.
 
-Local requirements: macOS, Xcode 16+, and XcodeGen.
+Local requirements: macOS, Xcode 16+, XcodeGen, and Rust 1.85+.
 
 ```sh
 sh scripts/fetch-geo.sh
+sh scripts/build-tun2proxy-shim.sh
 xcodegen generate
 sh scripts/build-unsigned-ipa.sh
 ```

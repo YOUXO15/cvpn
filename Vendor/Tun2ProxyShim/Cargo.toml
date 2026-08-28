@@ -1,0 +1,23 @@
+[package]
+name = "tunnel-proxy-shim"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+rust-version = "1.85"
+
+[lib]
+name = "tunnel_proxy_shim"
+crate-type = ["staticlib"]
+
+[dependencies]
+clap = { version = "4.6.0", features = ["derive"] }
+shlex = "1.3.0"
+tokio = { version = "1.53.0", features = ["rt-multi-thread"] }
+tun2proxy = { version = "=0.8.3", default-features = false }
+
+[profile.release]
+lto = "thin"
+opt-level = "s"
+panic = "abort"
+strip = "symbols"

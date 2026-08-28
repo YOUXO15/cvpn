@@ -4,6 +4,8 @@ __pycache__/
 .build/
 build/
 output/
+Vendor/Tun2ProxyShim/target/
+Vendor/Tun2ProxyShim.xcframework/
 TunnelClient.xcodeproj/
 Resources/Tunnel/Geo/*.dat
 Resources/App/SecurityPolicy.plist

@@ -4,13 +4,14 @@ import SwiftyXrayKit
 
 final class PacketTunnelProvider: NEPacketTunnelProvider {
     private struct PreparedCore {
-        let bridge: XrayBridge
+        let bridge: SocksTunnelBridge
         let dataDirectory: URL
         let configURL: URL
         let routeAddresses: [TunnelIPAddress]
+        let socksCredentials: LocalSocksCredentials
     }
 
-    private var bridge: XrayBridge?
+    private var bridge: SocksTunnelBridge?
     private var transientConfigURL: URL?
 
     override func startTunnel(
@@ -73,14 +74,30 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func prepareCore(payload: StoredProfilePayload) throws -> PreparedCore {
         let dataDirectory = try geoDirectory()
-        let newBridge = XrayBridge(packetFlow: packetFlow)
+        let newBridge = SocksTunnelBridge(packetFlow: packetFlow)
+        let socksPort: Int
+        do {
+            guard let selectedPort = try SwiftyXray.getFreePorts(1).first else {
+                throw ClientError.unsupportedConfiguration
+            }
+            socksPort = selectedPort
+        } catch {
+            throw TunnelStartupError.configurationConversion
+        }
+        let socksCredentials = LocalSocksCredentials(
+            port: socksPort,
+            username: UUID().uuidString.replacingOccurrences(of: "-", with: ""),
+            password: UUID().uuidString.replacingOccurrences(of: "-", with: "")
+                + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        )
         let intermediate: XrayIntermediateConfig = switch payload.kind {
         case .xrayJSON: .json(payload.content)
         case .shareLink: .url(payload.content)
         }
         let built: [String: Any]
         do {
-            built = try newBridge.buildConfig(
+            let converter = XrayBridge(packetFlow: packetFlow)
+            let converted = try converter.buildConfig(
                 config: intermediate,
                 sniffing: SniffingConfiguration(
                     destOverride: ["http", "tls", "quic"],
@@ -89,6 +106,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
                     domainsExcluded: [],
                     metadataOnly: false
                 )
+            )
+            built = try XraySocksInboundBuilder.replacingInbounds(
+                in: converted,
+                credentials: socksCredentials
             )
         } catch {
             throw TunnelStartupError.configurationConversion
@@ -145,17 +166,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             bridge: newBridge,
             dataDirectory: dataDirectory,
             configURL: configURL,
-            routeAddresses: routeAddresses
+            routeAddresses: routeAddresses,
+            socksCredentials: socksCredentials
         )
     }
 
     private func startCore(_ prepared: PreparedCore) throws {
         do {
-            try prepared.bridge.startWithRawConfig(
-                rawConfigPath: prepared.configURL,
-                dataDir: prepared.dataDirectory,
-                preset: .mobile,
-                traceHandle: nil
+            try prepared.bridge.start(
+                configURL: prepared.configURL,
+                dataDirectory: prepared.dataDirectory,
+                credentials: prepared.socksCredentials
             )
         } catch {
             throw TunnelStartupError.engineStart
@@ -189,7 +210,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: remoteAddress)
         settings.mtu = 1360
 
-        let ipv4 = NEIPv4Settings(addresses: ["198.18.0.1"], subnetMasks: ["255.255.255.0"])
+        // Keep the interface address outside tun2proxy's 198.18.0.0/15
+        // virtual-DNS pool so fake-IP replies always route back into the tunnel.
+        let ipv4 = NEIPv4Settings(addresses: ["10.250.0.2"], subnetMasks: ["255.255.255.252"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
         ipv4.excludedRoutes = routeAddresses.compactMap { address in
             guard address.family == .ipv4 else { return nil }

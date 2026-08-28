@@ -54,6 +54,10 @@ jobs:
           python3 -m py_compile \
             scripts/audit-ipa.py \
             scripts/test-darwin-tun-bridge.py
+          sh -n scripts/build-tun2proxy-shim.sh
+
+      - name: Build managed tun2proxy bridge
+        run: sh scripts/build-tun2proxy-shim.sh
 
       - name: Verify Darwin TUN bridge packet round-trip
         run: |

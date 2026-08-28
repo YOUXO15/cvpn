@@ -9,6 +9,9 @@ research are not copied into this project.
 - [libXray](https://github.com/XTLS/libXray), release `v26.3.27-ios`, MIT License.
 - [Xray-core](https://github.com/XTLS/Xray-core), version `v26.3.27`, Mozilla
   Public License 2.0.
+- [tun2proxy](https://github.com/tun2proxy/tun2proxy), version `0.8.3`, MIT
+  License. The local shim calls its public asynchronous API and deliberately
+  avoids the generic process-exit wrapper inside the iOS extension.
 - [v2fly/geoip](https://github.com/v2fly/geoip), release `202608050239`,
   Creative Commons Attribution-ShareAlike 4.0.
 - [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community),
