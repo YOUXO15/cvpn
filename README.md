@@ -32,7 +32,7 @@ The result must be re-signed with an Apple certificate and provisioning profiles
 that authorize `packet-tunnel-provider` for both the app and its embedded
 extension.
 
-Local requirements: macOS, Xcode 16+, XcodeGen, and Rust 1.85+.
+Local requirements: macOS, Xcode 16+, XcodeGen, and Rust 1.88+.
 
 ```sh
 sh scripts/fetch-geo.sh

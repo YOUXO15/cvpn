@@ -7,7 +7,7 @@ SHIM_DIR="$PROJECT_DIR/Vendor/Tun2ProxyShim"
 TARGET_DIR="$SHIM_DIR/target"
 OUTPUT="$PROJECT_DIR/Vendor/Tun2ProxyShim.xcframework"
 SIMULATOR_LIBRARY="$TARGET_DIR/ios-simulator/libtunnel_proxy_shim.a"
-RUST_TOOLCHAIN=1.85.1
+RUST_TOOLCHAIN=1.88.0
 
 rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
 rustup target add --toolchain "$RUST_TOOLCHAIN" \
