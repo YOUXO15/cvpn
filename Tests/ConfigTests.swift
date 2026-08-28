@@ -17,6 +17,15 @@ final class ConfigTests: XCTestCase {
         XCTAssertFalse(tunnelProtocol.includeAllNetworks)
     }
 
+    func testSystemDNSUsesManagedBridgeVirtualResolver() {
+        XCTAssertEqual(AppConstants.virtualDNSServers, ["198.18.0.1"])
+        XCTAssertFalse(
+            AppConstants.virtualDNSServers.contains {
+                XrayConfigHardener.directBootstrapAddresses.contains($0)
+            }
+        )
+    }
+
     func testSocksInboundBuilderReplacesUntrustedInbound() throws {
         let source: [String: Any] = [
             "inbounds": [[

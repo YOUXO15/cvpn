@@ -11,6 +11,7 @@ enum AppConstants {
     static let providerProfileIDKey = "profileID"
     static let providerProfilePayloadKey = "profilePayload"
     static let maximumProfilesPerImport = 50
+    static let virtualDNSServers = ["198.18.0.1"]
 }
 
 enum EmbeddedTunnelBundleLocator {

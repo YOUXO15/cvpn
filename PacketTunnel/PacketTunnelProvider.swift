@@ -232,7 +232,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         settings.ipv6Settings = ipv6
 
-        let dns = NEDNSSettings(servers: ["1.1.1.1", "9.9.9.9", "2606:4700:4700::1111"])
+        // tun2proxy's virtual DNS maps names into its 198.18.0.0/15 pool and
+        // later forwards the original hostname through SOCKS. Point iOS at
+        // that in-tunnel resolver so DNS cannot bypass the packet flow.
+        let dns = NEDNSSettings(servers: AppConstants.virtualDNSServers)
         dns.matchDomains = [""]
         dns.matchDomainsNoSearch = true
         settings.dnsSettings = dns
