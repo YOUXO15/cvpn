@@ -10,5 +10,5 @@ struct TunnelTrafficSnapshot: Codable, Equatable, Sendable {
 enum TunnelProviderMessage {
     // A fixed binary request avoids placing profile identifiers or configuration
     // material in the provider-message channel.
-    static let trafficSnapshotRequest = Data([0x43, 0x45, 0x4B, 0x43, 0x01])
+    static let trafficSnapshotRequest = Data("tunnel-traffic-v1".utf8)
 }

@@ -89,7 +89,10 @@ final class ConfigTests: XCTestCase {
         let decoded = try JSONDecoder().decode(TunnelTrafficSnapshot.self, from: encoded)
 
         XCTAssertEqual(decoded, snapshot)
-        XCTAssertEqual(TunnelProviderMessage.trafficSnapshotRequest.count, 5)
+        XCTAssertEqual(
+            TunnelProviderMessage.trafficSnapshotRequest,
+            Data("tunnel-traffic-v1".utf8)
+        )
         XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("profile"))
         XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("vless"))
     }
