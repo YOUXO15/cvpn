@@ -54,7 +54,8 @@ jobs:
           python3 -m py_compile \
             scripts/audit-ipa.py \
             scripts/test-darwin-tun-bridge.py \
-            scripts/test-tun2proxy-bridge.py
+            scripts/test-tun2proxy-bridge.py \
+            scripts/test-xray-darwin-egress.py
           sh -n scripts/build-tun2proxy-shim.sh
 
       - name: Build managed tun2proxy bridge
@@ -89,6 +90,11 @@ jobs:
           python3 scripts/test-darwin-tun-bridge.py \
             --xray "$RUNNER_TEMP/client-xray-darwin/xray" \
             --transport stream
+
+      - name: Verify Xray Darwin egress interface binding
+        run: |
+          python3 scripts/test-xray-darwin-egress.py \
+            --xray "$RUNNER_TEMP/client-xray-darwin/xray"
 
       - name: Generate project
         run: |
