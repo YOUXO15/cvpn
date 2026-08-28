@@ -60,7 +60,7 @@ jobs:
       - name: Build managed tun2proxy bridge
         run: sh scripts/build-tun2proxy-shim.sh
 
-      - name: Verify managed TUN-to-SOCKS round-trip
+      - name: Verify managed DNS-and-TUN-to-SOCKS round-trip
         run: |
           cargo +1.88.0 build \
             --locked \
