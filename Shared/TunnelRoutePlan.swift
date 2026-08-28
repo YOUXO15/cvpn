@@ -28,18 +28,30 @@ enum XrayOutboundEndpointExtractor {
                   let settings = dictionary(outbound["settings"]) else {
                 continue
             }
+            // Current libXray serializes single-server client settings with the
+            // endpoint directly under `settings.address`. Older and imported
+            // Xray JSON documents can still use `servers` or `vnext` arrays.
+            append(settings["address"] as? String, seen: &seen, result: &result)
             for collectionName in ["servers", "vnext"] {
                 guard let endpoints = settings[collectionName] as? [Any] else { continue }
                 for item in endpoints {
                     guard let endpoint = dictionary(item) else { continue }
-                    guard let rawAddress = endpoint["address"] as? String else { continue }
-                    let address = normalize(rawAddress)
-                    guard !address.isEmpty, seen.insert(address).inserted else { continue }
-                    result.append(address)
+                    append(endpoint["address"] as? String, seen: &seen, result: &result)
                 }
             }
         }
         return result
+    }
+
+    private static func append(
+        _ rawAddress: String?,
+        seen: inout Set<String>,
+        result: inout [String]
+    ) {
+        guard let rawAddress else { return }
+        let address = normalize(rawAddress)
+        guard !address.isEmpty, seen.insert(address).inserted else { return }
+        result.append(address)
     }
 
     private static func dictionary(_ value: Any?) -> [String: Any]? {

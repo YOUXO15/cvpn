@@ -17,6 +17,10 @@ final class ConfigTests: XCTestCase {
                     "protocol": "shadowsocks",
                     "settings": ["servers": [["address": "203.0.113.7", "port": 8388]]]
                 ],
+                [
+                    "protocol": "trojan",
+                    "settings": ["address": "direct.example", "port": 443]
+                ],
                 ["protocol": "dns", "tag": "dns-out"],
                 ["protocol": "freedom", "tag": "direct"]
             ]
@@ -24,7 +28,7 @@ final class ConfigTests: XCTestCase {
 
         XCTAssertEqual(
             XrayOutboundEndpointExtractor.hosts(in: config),
-            ["edge.example", "203.0.113.7"]
+            ["edge.example", "203.0.113.7", "direct.example"]
         )
     }
 
