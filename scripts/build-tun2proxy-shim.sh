@@ -7,16 +7,18 @@ SHIM_DIR="$PROJECT_DIR/Vendor/Tun2ProxyShim"
 TARGET_DIR="$SHIM_DIR/target"
 OUTPUT="$PROJECT_DIR/Vendor/Tun2ProxyShim.xcframework"
 SIMULATOR_LIBRARY="$TARGET_DIR/ios-simulator/libtunnel_proxy_shim.a"
+RUST_TOOLCHAIN=1.85.1
 
-rustup target add \
+rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+rustup target add --toolchain "$RUST_TOOLCHAIN" \
     aarch64-apple-ios \
     aarch64-apple-ios-sim \
     x86_64-apple-ios
 
 export IPHONEOS_DEPLOYMENT_TARGET=16.0
-cargo build --manifest-path "$SHIM_DIR/Cargo.toml" --release --target aarch64-apple-ios
-cargo build --manifest-path "$SHIM_DIR/Cargo.toml" --release --target aarch64-apple-ios-sim
-cargo build --manifest-path "$SHIM_DIR/Cargo.toml" --release --target x86_64-apple-ios
+cargo +"$RUST_TOOLCHAIN" build --locked --manifest-path "$SHIM_DIR/Cargo.toml" --release --target aarch64-apple-ios
+cargo +"$RUST_TOOLCHAIN" build --locked --manifest-path "$SHIM_DIR/Cargo.toml" --release --target aarch64-apple-ios-sim
+cargo +"$RUST_TOOLCHAIN" build --locked --manifest-path "$SHIM_DIR/Cargo.toml" --release --target x86_64-apple-ios
 
 rm -rf "$TARGET_DIR/ios-simulator" "$OUTPUT"
 mkdir -p "$TARGET_DIR/ios-simulator"
