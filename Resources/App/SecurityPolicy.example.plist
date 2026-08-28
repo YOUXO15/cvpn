@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>version</key>
+    <integer>1</integer>
+    <key>requireSignedEnvelope</key>
+    <true/>
+    <key>maximumResponseBytes</key>
+    <integer>1048576</integer>
+    <key>allowedHosts</key>
+    <array>
+        <string>config.example</string>
+    </array>
+    <key>rawSubscriptionHosts</key>
+    <array/>
+    <key>spkiPins</key>
+    <dict>
+        <key>config.example</key>
+        <array>
+            <string>sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</string>
+            <string>sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=</string>
+        </array>
+    </dict>
+    <key>signingKeys</key>
+    <dict/>
+</dict>
+</plist>

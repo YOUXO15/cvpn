@@ -1,0 +1,109 @@
+name: iOS client IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-client-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unsigned-ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare private build policy
+        env:
+          IOS_SECURITY_POLICY_BASE64: ${{ secrets.IOS_SECURITY_POLICY_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import os
+          import plistlib
+          from pathlib import Path
+
+          encoded = os.environ.get("IOS_SECURITY_POLICY_BASE64", "")
+          if not encoded:
+              raise SystemExit("Required private build policy is unavailable")
+          try:
+              raw = base64.b64decode("".join(encoded.split()), validate=True)
+              policy = plistlib.loads(raw)
+          except Exception:
+              raise SystemExit("Private build policy is invalid")
+          if not policy.get("allowedHosts") or not policy.get("spkiPins"):
+              raise SystemExit("Private build policy is incomplete")
+          destination = Path("Resources/App/SecurityPolicy.plist")
+          destination.write_bytes(raw)
+          print("private_policy=ready")
+          PY
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Validate packaging scripts
+        run: |
+          python3 -m py_compile \
+            scripts/audit-ipa.py \
+            scripts/test-darwin-tun-bridge.py
+
+      - name: Verify Darwin TUN bridge packet round-trip
+        run: |
+          mkdir -p "$RUNNER_TEMP/client-xray-darwin"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$RUNNER_TEMP/client-xray-darwin/xray.zip" \
+            https://github.com/XTLS/Xray-core/releases/download/v26.3.27/Xray-macos-arm64-v8a.zip
+          printf '%s  %s\n' \
+            '2e93a67e8aa1936ecefb307e120830fcbd4c643ab9b1c46a2d0838d5f8409eaf' \
+            "$RUNNER_TEMP/client-xray-darwin/xray.zip" | shasum -a 256 --check
+          unzip -q "$RUNNER_TEMP/client-xray-darwin/xray.zip" \
+            -d "$RUNNER_TEMP/client-xray-darwin"
+          chmod +x "$RUNNER_TEMP/client-xray-darwin/xray"
+          python3 scripts/test-darwin-tun-bridge.py \
+            --xray "$RUNNER_TEMP/client-xray-darwin/xray" \
+            --transport dgram
+          python3 scripts/test-darwin-tun-bridge.py \
+            --xray "$RUNNER_TEMP/client-xray-darwin/xray" \
+            --transport stream
+
+      - name: Generate project
+        run: |
+          sh scripts/fetch-geo.sh
+          xcodegen generate
+
+      - name: Run security and parser tests
+        run: |
+          rm -rf output/ClientTests.xcresult output/ui-screenshots
+          mkdir -p output
+          xcodebuild \
+            -project TunnelClient.xcodeproj \
+            -scheme TunnelClient \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone SE (3rd generation)' \
+            -derivedDataPath "$PWD/build/TestDerivedData" \
+            -resultBundlePath "$PWD/output/ClientTests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            test
+
+      - name: Build unsigned IPA
+        run: sh scripts/build-unsigned-ipa.sh
+
+      - name: Upload IPA and checksum
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: TunnelClient-resign-ready
+          path: |
+            output/TunnelClient-resign-ready.ipa
+            output/TunnelClient-resign-ready.ipa.sha256
+          if-no-files-found: error
+          retention-days: 14
