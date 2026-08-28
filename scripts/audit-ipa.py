@@ -49,6 +49,18 @@ def main() -> int:
             raise RuntimeError("Unexpected application bundle identifier")
         if extension_info.get("CFBundleIdentifier") != "com.example.tunnelclient.PacketTunnel":
             raise RuntimeError("Unexpected packet tunnel bundle identifier")
+        transport_security = app_info.get("NSAppTransportSecurity", {})
+        if transport_security.get("NSAllowsArbitraryLoads") is not False:
+            raise RuntimeError("Application Transport Security is not fail-closed")
+        if policy.get("requireSignedEnvelope") is not True:
+            raise RuntimeError("Signed configuration envelopes are not required by default")
+        maximum_response_bytes = policy.get("maximumResponseBytes")
+        if (
+            not isinstance(maximum_response_bytes, int)
+            or isinstance(maximum_response_bytes, bool)
+            or not 0 < maximum_response_bytes <= 4 * 1024 * 1024
+        ):
+            raise RuntimeError("Pinned response size policy is invalid")
         allowed_hosts = set(policy.get("allowedHosts", []))
         raw_hosts = set(policy.get("rawSubscriptionHosts", []))
         pins = policy.get("spkiPins", {})

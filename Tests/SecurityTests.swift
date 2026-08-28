@@ -1,8 +1,21 @@
 import CryptoKit
+import Security
 import XCTest
 @testable import TunnelClient
 
 final class SecurityTests: XCTestCase {
+    func testSPKIExtractorMatchesKnownRSAFixture() throws {
+        let certificateData = try XCTUnwrap(Data(base64Encoded: "MIICzTCCAbWgAwIBAgIHQ0VLQ1BJTjANBgkqhkiG9w0BAQsFADAeMRwwGgYDVQQDDBNHZW5lcmljIFBpbiBGaXh0dXJlMB4XDTI1MDEwMTAwMDAwMFoXDTM1MDEwMTAwMDAwMFowHjEcMBoGA1UEAwwTR2VuZXJpYyBQaW4gRml4dHVyZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMJ3p+EaK/DW2gvCQX4rjzRRVRi18hfbZ5hE3+x/lGAYutHrqcEP7oZls47TYEKMIR/acbdrAmsJnJtbfQvj5xhST5cJSwu8rZMs+pIofQr+rhGsDWSPO2rLIrA2YKs+e1HS4bCGPHbkK+BtEyg3Nq4k4SYOfQh3hgeMpHrXRlEZeh3A1+36iTDEJs96n8D5Dley9YYBz1LxB+ZYWRw99ab8rxEZB5rkGIwJy6H6XWcioZ+WzIHzpmfENxTeYJ7oTMlHWmQP1TyswNxHHSR9vz7uX+9baozF3X85eWZxAUwtP/BW1gxBgv12JfH4sAiNqr4xeA+3PWwyYgCFBWZGis8CAwEAAaMQMA4wDAYDVR0TAQH/BAIwADANBgkqhkiG9w0BAQsFAAOCAQEAa6zVNC1Vt7/JtENMB0/gHUGnJuDjR6hPN4cYyUv0/kXO2ZSC9aGT0zyJcqe69+VPINzKOuEI/HrJFQv79KgpCUcT7Z34Nn33yf0tEhj3iWvStxvbhbl3X5rttXV0v2Y+Af/3LfHoUJpD224cqa7HC8nl2qfQ6i3BRMESeKMJqiYiQLvx4WjyI270YS/6r6P9QJjUDk+G/I1OfcpVBWU36xI1MREhZDBIhJwLIXn19+AjBCAItuUwUhredmU7e2/LjbjPg81oJyLN3L0K0GlF0hm1UhN/0dpPnfPXlEd+oKN5RLpDPgR5tWCPvOYmne08kprQF/FierMofH75NY2meA=="))
+        let certificate = try XCTUnwrap(
+            SecCertificateCreateWithData(nil, certificateData as CFData)
+        )
+
+        let spki = try DERSubjectPublicKeyInfo.extract(from: certificate)
+        let pin = Data(SHA256.hash(data: spki)).base64EncodedString()
+
+        XCTAssertEqual(pin, "hAliG80t99479ipnrDIJldJqjg1mtizHRKgHkcGfVd8=")
+    }
+
     func testSignedEnvelopeAcceptsValidEd25519Signature() throws {
         let privateKey = try Curve25519.Signing.PrivateKey(
             rawRepresentation: Data((0..<32).map(UInt8.init))
