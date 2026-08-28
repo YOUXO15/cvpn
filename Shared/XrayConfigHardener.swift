@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 
 enum XrayConfigHardener {
@@ -108,14 +107,5 @@ enum XrayConfigHardener {
         routing["domainMatcher"] = routing["domainMatcher"] ?? "hybrid"
         config["routing"] = routing
         return config
-    }
-}
-
-enum PhysicalEgressInterface {
-    static func isValidName(_ value: String) -> Bool {
-        guard !value.isEmpty, value.utf8.count < Int(IFNAMSIZ) else { return false }
-        return value.unicodeScalars.allSatisfy {
-            CharacterSet.alphanumerics.contains($0) || "._-".unicodeScalars.contains($0)
-        }
     }
 }

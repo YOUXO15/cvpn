@@ -1,5 +1,4 @@
 import Foundation
-import Network
 import NetworkExtension
 import SwiftyXrayKit
 
@@ -71,7 +70,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func prepareCore(payload: StoredProfilePayload) throws -> PreparedCore {
         let dataDirectory = try geoDirectory()
-        guard let egressInterface = physicalEgressInterfaceName() else {
+        guard let egressInterface = PhysicalEgressInterface.resolve() else {
             throw TunnelStartupError.egressInterfaceSelection
         }
         let newBridge = SocksTunnelBridge(
@@ -248,22 +247,5 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         dns.matchDomainsNoSearch = true
         settings.dnsSettings = dns
         return settings
-    }
-
-    private func physicalEgressInterfaceName() -> String? {
-        guard let path = defaultPath, path.status == .satisfied else { return nil }
-        let interface = path.availableInterfaces.first { candidate in
-            switch candidate.type {
-            case .wifi, .cellular, .wiredEthernet:
-                return true
-            default:
-                return false
-            }
-        }
-        guard let name = interface?.name,
-              PhysicalEgressInterface.isValidName(name) else {
-            return nil
-        }
-        return name
     }
 }
