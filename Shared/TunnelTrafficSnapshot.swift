@@ -6,13 +6,15 @@ struct TunnelTrafficSnapshot: Codable, Equatable, Sendable {
     let sentPackets: Int64
     let receivedPackets: Int64
     let transportReady: Bool
+    let outboundInterfaceBound: Bool
 
     static let zero = TunnelTrafficSnapshot(
         sentBytes: 0,
         receivedBytes: 0,
         sentPackets: 0,
         receivedPackets: 0,
-        transportReady: false
+        transportReady: false,
+        outboundInterfaceBound: false
     )
 }
 

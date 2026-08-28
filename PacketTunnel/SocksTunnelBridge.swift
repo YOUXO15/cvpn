@@ -23,6 +23,7 @@ final class SocksTunnelBridge: @unchecked Sendable {
     private static let mtu: UInt16 = 1_360
 
     private weak var packetFlow: NEPacketTunnelFlow?
+    private let outboundInterfaceBound: Bool
     private let onUnexpectedExit: (Int32) -> Void
     private let statsLock = NSLock()
     private let stateLock = NSLock()
@@ -37,9 +38,11 @@ final class SocksTunnelBridge: @unchecked Sendable {
 
     init(
         packetFlow: NEPacketTunnelFlow,
+        outboundInterfaceBound: Bool,
         onUnexpectedExit: @escaping (Int32) -> Void
     ) {
         self.packetFlow = packetFlow
+        self.outboundInterfaceBound = outboundInterfaceBound
         self.onUnexpectedExit = onUnexpectedExit
     }
 
@@ -124,7 +127,8 @@ final class SocksTunnelBridge: @unchecked Sendable {
             receivedBytes: max(0, receivedBytes),
             sentPackets: max(0, sentPackets),
             receivedPackets: max(0, receivedPackets),
-            transportReady: ready
+            transportReady: ready,
+            outboundInterfaceBound: outboundInterfaceBound
         )
         statsLock.unlock()
         return result

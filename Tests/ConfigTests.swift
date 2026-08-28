@@ -156,7 +156,8 @@ final class ConfigTests: XCTestCase {
             receivedBytes: 2_048,
             sentPackets: 3,
             receivedPackets: 2,
-            transportReady: true
+            transportReady: true,
+            outboundInterfaceBound: true
         )
         let encoded = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(TunnelTrafficSnapshot.self, from: encoded)
@@ -444,6 +445,59 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(rules.first?["outboundTag"] as? String, "dns-out")
     }
 
+    func testHardenerBindsEveryOutboundToPhysicalInterface() throws {
+        let source: [String: Any] = [
+            "outbounds": [
+                [
+                    "protocol": "vless",
+                    "streamSettings": [
+                        "security": "reality",
+                        "sockopt": [
+                            "interface": "utun99",
+                            "tcpFastOpen": true
+                        ]
+                    ]
+                ],
+                ["protocol": "freedom", "tag": "direct"]
+            ]
+        ]
+
+        let hardened = try XrayConfigHardener.harden(source, egressInterface: "en0")
+        let outbounds = try XCTUnwrap(hardened["outbounds"] as? [[String: Any]])
+
+        for outbound in outbounds {
+            let stream = try XCTUnwrap(outbound["streamSettings"] as? [String: Any])
+            let socketOptions = try XCTUnwrap(stream["sockopt"] as? [String: Any])
+            XCTAssertEqual(socketOptions["interface"] as? String, "en0")
+        }
+        let proxyStream = try XCTUnwrap(outbounds.first?["streamSettings"] as? [String: Any])
+        let proxySocketOptions = try XCTUnwrap(proxyStream["sockopt"] as? [String: Any])
+        XCTAssertEqual(proxySocketOptions["tcpFastOpen"] as? Bool, true)
+    }
+
+    func testHardenerRejectsInvalidPhysicalInterfaceName() {
+        XCTAssertThrowsError(try XrayConfigHardener.harden(
+            ["outbounds": [["protocol": "vless"]]],
+            egressInterface: "utun0\nsecret"
+        ))
+    }
+
+    func testHardenerRemovesSubscriptionProvidedInterfaceWithoutTrustedBinding() throws {
+        let source: [String: Any] = [
+            "outbounds": [[
+                "protocol": "vless",
+                "streamSettings": ["sockopt": ["interface": "utun99"]]
+            ]]
+        ]
+
+        let hardened = try XrayConfigHardener.harden(source)
+        let proxy = try firstProxyOutbound(in: hardened)
+        let stream = proxy["streamSettings"] as? [String: Any]
+        let socketOptions = stream?["sockopt"] as? [String: Any]
+
+        XCTAssertNil(socketOptions?["interface"])
+    }
+
     func testHardenerDropsRealityServerMaterialFromSubscription() throws {
         let source: [String: Any] = [
             "outbounds": [[
@@ -506,6 +560,16 @@ final class ConfigTests: XCTestCase {
 
         XCTAssertTrue(message.contains("этап 6"))
         XCTAssertTrue(message.contains("Секретные параметры скрыты"))
+        XCTAssertFalse(message.contains("example.com"))
+    }
+
+    func testEgressInterfaceDiagnosticDoesNotExposeConfiguration() {
+        let message = VPNDisconnectDiagnostic.message(
+            for: TunnelStartupError.egressInterfaceSelection as NSError
+        )
+
+        XCTAssertTrue(message.contains("этап 7"))
+        XCTAssertTrue(message.contains("физический интернет-интерфейс"))
         XCTAssertFalse(message.contains("example.com"))
     }
 

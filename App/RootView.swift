@@ -271,6 +271,9 @@ struct RootView: View {
         guard vpn.traffic.transportReady else {
             return "TUN-мост не готов"
         }
+        guard vpn.traffic.outboundInterfaceBound else {
+            return "Исходящий интерфейс не привязан"
+        }
         if vpn.traffic.sentPackets == 0 {
             return "TUN-мост готов · ожидаем трафик"
         }

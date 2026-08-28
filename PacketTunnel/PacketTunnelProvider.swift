@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import NetworkExtension
 import SwiftyXrayKit
 
@@ -70,8 +71,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func prepareCore(payload: StoredProfilePayload) throws -> PreparedCore {
         let dataDirectory = try geoDirectory()
+        guard let egressInterface = physicalEgressInterfaceName() else {
+            throw TunnelStartupError.egressInterfaceSelection
+        }
         let newBridge = SocksTunnelBridge(
             packetFlow: packetFlow,
+            outboundInterfaceBound: true,
             onUnexpectedExit: { [weak self] _ in
                 self?.cancelTunnelWithError(TunnelRuntimeError.transportBridgeExited)
             }
@@ -119,7 +124,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         let hardened: [String: Any]
         let serialized: Data
         do {
-            hardened = try XrayConfigHardener.harden(built)
+            hardened = try XrayConfigHardener.harden(
+                built,
+                egressInterface: egressInterface
+            )
             serialized = try JSONSerialization.data(withJSONObject: hardened, options: [.sortedKeys])
         } catch {
             throw TunnelStartupError.configurationHardening
@@ -240,5 +248,22 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         dns.matchDomainsNoSearch = true
         settings.dnsSettings = dns
         return settings
+    }
+
+    private func physicalEgressInterfaceName() -> String? {
+        guard let path = defaultPath, path.status == .satisfied else { return nil }
+        let interface = path.availableInterfaces.first { candidate in
+            switch candidate.type {
+            case .wifi, .cellular, .wiredEthernet:
+                return true
+            default:
+                return false
+            }
+        }
+        guard let name = interface?.name,
+              PhysicalEgressInterface.isValidName(name) else {
+            return nil
+        }
+        return name
     }
 }

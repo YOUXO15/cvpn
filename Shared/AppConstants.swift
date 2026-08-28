@@ -118,6 +118,7 @@ enum TunnelStartupError: Int, Error, CustomNSError {
     case engineStart = 4
     case routeEndpointExtraction = 5
     case routeResolution = 6
+    case egressInterfaceSelection = 7
 
     var errorCode: Int { rawValue }
 

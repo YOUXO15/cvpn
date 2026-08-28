@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 enum XrayConfigHardener {
@@ -21,8 +22,15 @@ enum XrayConfigHardener {
         "limitFallbackDownload"
     ]
 
-    static func harden(_ source: [String: Any]) throws -> [String: Any] {
+    static func harden(
+        _ source: [String: Any],
+        egressInterface: String? = nil
+    ) throws -> [String: Any] {
         guard var outbounds = source["outbounds"] as? [[String: Any]], !outbounds.isEmpty else {
+            throw ClientError.unsupportedConfiguration
+        }
+        if let egressInterface,
+           !PhysicalEgressInterface.isValidName(egressInterface) {
             throw ClientError.unsupportedConfiguration
         }
 
@@ -36,21 +44,43 @@ enum XrayConfigHardener {
         // which currently puts the human-readable profile name in `sendThrough`.
         // Xray expects an IP address there and otherwise rejects the configuration
         // before the tunnel can start.
+        if !outbounds.contains(where: { ($0["tag"] as? String) == "dns-out" }) {
+            outbounds.append(["protocol": "dns", "tag": "dns-out"])
+        }
+
         outbounds = outbounds.map { outbound in
             var sanitized = outbound
             sanitized.removeValue(forKey: "sendThrough")
-            if var streamSettings = sanitized["streamSettings"] as? [String: Any],
-               var realitySettings = streamSettings["realitySettings"] as? [String: Any] {
+            var streamSettings = sanitized["streamSettings"] as? [String: Any] ?? [:]
+            if var realitySettings = streamSettings["realitySettings"] as? [String: Any] {
                 realityServerOnlyKeys.forEach { realitySettings.removeValue(forKey: $0) }
                 streamSettings["realitySettings"] = realitySettings
+            }
+
+            // Xray runs inside the Packet Tunnel provider. Without an explicit
+            // physical-interface binding, its own proxy sockets can follow the
+            // default route back into the virtual interface and form a silent
+            // routing loop: iOS reports "connected", but no reply reaches the
+            // device. Never trust a subscription-provided interface name.
+            var socketOptions = streamSettings["sockopt"] as? [String: Any] ?? [:]
+            if let egressInterface {
+                socketOptions["interface"] = egressInterface
+            } else {
+                socketOptions.removeValue(forKey: "interface")
+            }
+            if socketOptions.isEmpty {
+                streamSettings.removeValue(forKey: "sockopt")
+            } else {
+                streamSettings["sockopt"] = socketOptions
+            }
+            if streamSettings.isEmpty {
+                sanitized.removeValue(forKey: "streamSettings")
+            } else {
                 sanitized["streamSettings"] = streamSettings
             }
             return sanitized
         }
 
-        if !outbounds.contains(where: { ($0["tag"] as? String) == "dns-out" }) {
-            outbounds.append(["protocol": "dns", "tag": "dns-out"])
-        }
         config["outbounds"] = outbounds
 
         if config["dns"] == nil {
@@ -78,5 +108,14 @@ enum XrayConfigHardener {
         routing["domainMatcher"] = routing["domainMatcher"] ?? "hybrid"
         config["routing"] = routing
         return config
+    }
+}
+
+enum PhysicalEgressInterface {
+    static func isValidName(_ value: String) -> Bool {
+        guard !value.isEmpty, value.utf8.count < Int(IFNAMSIZ) else { return false }
+        return value.unicodeScalars.allSatisfy {
+            CharacterSet.alphanumerics.contains($0) || "._-".unicodeScalars.contains($0)
+        }
     }
 }
