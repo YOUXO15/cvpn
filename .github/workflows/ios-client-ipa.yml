@@ -53,11 +53,23 @@ jobs:
         run: |
           python3 -m py_compile \
             scripts/audit-ipa.py \
-            scripts/test-darwin-tun-bridge.py
+            scripts/test-darwin-tun-bridge.py \
+            scripts/test-tun2proxy-bridge.py
           sh -n scripts/build-tun2proxy-shim.sh
 
       - name: Build managed tun2proxy bridge
         run: sh scripts/build-tun2proxy-shim.sh
+
+      - name: Verify managed TUN-to-SOCKS round-trip
+        run: |
+          cargo +1.88.0 build \
+            --locked \
+            --release \
+            --features probe \
+            --bin tunnel-proxy-probe \
+            --manifest-path Vendor/Tun2ProxyShim/Cargo.toml
+          python3 scripts/test-tun2proxy-bridge.py \
+            --probe Vendor/Tun2ProxyShim/target/release/tunnel-proxy-probe
 
       - name: Verify Darwin TUN bridge packet round-trip
         run: |

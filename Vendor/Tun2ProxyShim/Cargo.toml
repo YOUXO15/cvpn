@@ -8,7 +8,15 @@ rust-version = "1.88"
 
 [lib]
 name = "tunnel_proxy_shim"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+probe = []
+
+[[bin]]
+name = "tunnel-proxy-probe"
+path = "src/bin/tunnel_proxy_probe.rs"
+required-features = ["probe"]
 
 [dependencies]
 clap = { version = "4.6.0", features = ["derive"] }
