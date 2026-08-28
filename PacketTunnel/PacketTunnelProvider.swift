@@ -64,17 +64,18 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             completionHandler?(nil)
             return
         }
-        let stats = bridge?.currentStats() ?? BytesTransferred()
-        let snapshot = TunnelTrafficSnapshot(
-            sentBytes: stats.sent,
-            receivedBytes: stats.received
-        )
+        let snapshot = bridge?.currentSnapshot() ?? .zero
         completionHandler?(try? JSONEncoder().encode(snapshot))
     }
 
     private func prepareCore(payload: StoredProfilePayload) throws -> PreparedCore {
         let dataDirectory = try geoDirectory()
-        let newBridge = SocksTunnelBridge(packetFlow: packetFlow)
+        let newBridge = SocksTunnelBridge(
+            packetFlow: packetFlow,
+            onUnexpectedExit: { [weak self] _ in
+                self?.cancelTunnelWithError(TunnelRuntimeError.transportBridgeExited)
+            }
+        )
         let socksPort: Int
         do {
             guard let selectedPort = try SwiftyXray.getFreePorts(1).first else {

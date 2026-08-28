@@ -3,8 +3,17 @@ import Foundation
 struct TunnelTrafficSnapshot: Codable, Equatable, Sendable {
     let sentBytes: Int64
     let receivedBytes: Int64
+    let sentPackets: Int64
+    let receivedPackets: Int64
+    let transportReady: Bool
 
-    static let zero = TunnelTrafficSnapshot(sentBytes: 0, receivedBytes: 0)
+    static let zero = TunnelTrafficSnapshot(
+        sentBytes: 0,
+        receivedBytes: 0,
+        sentPackets: 0,
+        receivedPackets: 0,
+        transportReady: false
+    )
 }
 
 enum TunnelProviderMessage {

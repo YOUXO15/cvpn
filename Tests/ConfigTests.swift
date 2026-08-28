@@ -131,7 +131,13 @@ final class ConfigTests: XCTestCase {
     }
 
     func testTrafficSnapshotProviderMessageContainsNoProfileMaterial() throws {
-        let snapshot = TunnelTrafficSnapshot(sentBytes: 1_024, receivedBytes: 2_048)
+        let snapshot = TunnelTrafficSnapshot(
+            sentBytes: 1_024,
+            receivedBytes: 2_048,
+            sentPackets: 3,
+            receivedPackets: 2,
+            transportReady: true
+        )
         let encoded = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(TunnelTrafficSnapshot.self, from: encoded)
 
@@ -142,6 +148,7 @@ final class ConfigTests: XCTestCase {
         )
         XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("profile"))
         XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("vless"))
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("host"))
     }
 
     func testDarwinTunDatagramCodecRoundTripsIPv4AndIPv6() throws {
@@ -480,6 +487,18 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(message.contains("этап 6"))
         XCTAssertTrue(message.contains("Секретные параметры скрыты"))
         XCTAssertFalse(message.contains("example.com"))
+    }
+
+    func testRuntimeBridgeDiagnosticContainsNoConfigurationMaterial() {
+        let error = TunnelRuntimeError.transportBridgeExited as NSError
+
+        let message = VPNDisconnectDiagnostic.message(for: error)
+
+        XCTAssertTrue(message.contains("TUN-мост"))
+        XCTAssertTrue(message.contains("не записывались"))
+        XCTAssertFalse(message.contains("vless"))
+        XCTAssertFalse(message.contains("example.com"))
+        XCTAssertTrue(error.userInfo.isEmpty)
     }
 
     private func convertedConfig(from link: String) throws -> [String: Any] {

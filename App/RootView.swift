@@ -81,17 +81,22 @@ struct RootView: View {
                     .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
 
                 if vpn.isConnected {
-                    HStack(spacing: 18) {
-                        trafficLabel(
-                            systemImage: "arrow.up",
-                            title: formattedBytes(vpn.traffic.sentBytes),
-                            accessibilityLabel: "Отправлено"
-                        )
-                        trafficLabel(
-                            systemImage: "arrow.down",
-                            title: formattedBytes(vpn.traffic.receivedBytes),
-                            accessibilityLabel: "Получено"
-                        )
+                    VStack(spacing: 7) {
+                        HStack(spacing: 18) {
+                            trafficLabel(
+                                systemImage: "arrow.up",
+                                title: formattedBytes(vpn.traffic.sentBytes),
+                                accessibilityLabel: "Отправлено"
+                            )
+                            trafficLabel(
+                                systemImage: "arrow.down",
+                                title: formattedBytes(vpn.traffic.receivedBytes),
+                                accessibilityLabel: "Получено"
+                            )
+                        }
+                        Text(trafficDiagnostic)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.72))
                     }
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.white.opacity(0.82))
@@ -260,6 +265,19 @@ struct RootView: View {
 
     private func formattedBytes(_ value: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: max(0, value), countStyle: .file)
+    }
+
+    private var trafficDiagnostic: String {
+        guard vpn.traffic.transportReady else {
+            return "TUN-мост не готов"
+        }
+        if vpn.traffic.sentPackets == 0 {
+            return "TUN-мост готов · ожидаем трафик"
+        }
+        if vpn.traffic.receivedPackets == 0 {
+            return "Пакеты отправляются · ответа пока нет"
+        }
+        return "Трафик проходит в обе стороны"
     }
 
     private func toggleConnection() {

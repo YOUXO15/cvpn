@@ -209,6 +209,10 @@ enum VPNDisconnectDiagnostic {
         }
 
         let nsError = error as NSError
+        if nsError.domain == TunnelRuntimeError.errorDomain,
+           TunnelRuntimeError(rawValue: nsError.code) == .transportBridgeExited {
+            return "Транспортный TUN-мост неожиданно остановился. Профиль и секретные параметры не записывались в диагностику."
+        }
         if nsError.domain == TunnelStartupError.errorDomain,
            let stage = TunnelStartupError(rawValue: nsError.code) {
             switch stage {

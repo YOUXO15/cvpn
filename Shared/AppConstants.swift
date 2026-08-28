@@ -122,3 +122,13 @@ enum TunnelStartupError: Int, Error, CustomNSError {
 
     var errorUserInfo: [String: Any] { [:] }
 }
+
+enum TunnelRuntimeError: Int, Error, CustomNSError {
+    static let errorDomain = "com.example.tunnelclient.tunnel.runtime"
+
+    case transportBridgeExited = 1
+
+    var errorCode: Int { rawValue }
+
+    var errorUserInfo: [String: Any] { [:] }
+}

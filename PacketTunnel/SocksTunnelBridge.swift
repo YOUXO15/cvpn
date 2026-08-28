@@ -23,6 +23,7 @@ final class SocksTunnelBridge: @unchecked Sendable {
     private static let mtu: UInt16 = 1_360
 
     private weak var packetFlow: NEPacketTunnelFlow?
+    private let onUnexpectedExit: (Int32) -> Void
     private let statsLock = NSLock()
     private let stateLock = NSLock()
     private var swiftFd: Int32 = -1
@@ -31,9 +32,15 @@ final class SocksTunnelBridge: @unchecked Sendable {
     private var proxyExit = DispatchSemaphore(value: 0)
     private var sentBytes: Int64 = 0
     private var receivedBytes: Int64 = 0
+    private var sentPackets: Int64 = 0
+    private var receivedPackets: Int64 = 0
 
-    init(packetFlow: NEPacketTunnelFlow) {
+    init(
+        packetFlow: NEPacketTunnelFlow,
+        onUnexpectedExit: @escaping (Int32) -> Void
+    ) {
         self.packetFlow = packetFlow
+        self.onUnexpectedExit = onUnexpectedExit
     }
 
     deinit {
@@ -63,10 +70,10 @@ final class SocksTunnelBridge: @unchecked Sendable {
         let command = Self.command(fd: fd, credentials: credentials)
         let exitSignal = proxyExit
         Thread.detachNewThread { [weak self] in
-            command.withCString { pointer in
-                _ = TunnelProxyRun(pointer, Self.mtu, true)
+            let exitCode = command.withCString { pointer in
+                TunnelProxyRun(pointer, Self.mtu, true)
             }
-            self?.proxyDidExit(fd: fd)
+            self?.proxyDidExit(fd: fd, exitCode: exitCode)
             exitSignal.signal()
         }
 
@@ -107,11 +114,17 @@ final class SocksTunnelBridge: @unchecked Sendable {
         try? SwiftyXray.stop()
     }
 
-    func currentStats() -> BytesTransferred {
+    func currentSnapshot() -> TunnelTrafficSnapshot {
+        stateLock.lock()
+        let ready = running && TunnelProxyIsRunning()
+        stateLock.unlock()
         statsLock.lock()
-        let result = BytesTransferred(
-            received: max(0, receivedBytes),
-            sent: max(0, sentBytes)
+        let result = TunnelTrafficSnapshot(
+            sentBytes: max(0, sentBytes),
+            receivedBytes: max(0, receivedBytes),
+            sentPackets: max(0, sentPackets),
+            receivedPackets: max(0, receivedPackets),
+            transportReady: ready
         )
         statsLock.unlock()
         return result
@@ -173,15 +186,20 @@ final class SocksTunnelBridge: @unchecked Sendable {
         if swift >= 0 { Darwin.close(swift) }
     }
 
-    private func proxyDidExit(fd: Int32) {
+    private func proxyDidExit(fd: Int32, exitCode: Int32) {
         stateLock.lock()
         let shouldClose = proxyFd == fd
+        let unexpected = running
+        running = false
         if shouldClose {
             proxyFd = -1
         }
         stateLock.unlock()
         if shouldClose {
             Darwin.close(fd)
+        }
+        if unexpected {
+            onUnexpectedExit(exitCode)
         }
     }
 
@@ -209,6 +227,7 @@ final class SocksTunnelBridge: @unchecked Sendable {
                 if let self {
                     self.statsLock.lock()
                     self.receivedBytes += Int64(decoded.packet.count)
+                    self.receivedPackets += 1
                     self.statsLock.unlock()
                 }
                 flow.value.writePackets(
@@ -248,6 +267,7 @@ final class SocksTunnelBridge: @unchecked Sendable {
                 }
                 self.statsLock.lock()
                 self.sentBytes += Int64(packet.count)
+                self.sentPackets += 1
                 self.statsLock.unlock()
             }
             self.readFromPacketFlow()
