@@ -6,6 +6,17 @@ import XCTest
 @testable import TunnelClient
 
 final class ConfigTests: XCTestCase {
+    func testFullTunnelPolicyDoesNotEnforceDefaultRouteWithExclusions() {
+        let tunnelProtocol = NETunnelProviderProtocol()
+        tunnelProtocol.enforceRoutes = true
+        tunnelProtocol.includeAllNetworks = true
+
+        TunnelRoutingPolicy.apply(to: tunnelProtocol)
+
+        XCTAssertFalse(tunnelProtocol.enforceRoutes)
+        XCTAssertFalse(tunnelProtocol.includeAllNetworks)
+    }
+
     func testSocksInboundBuilderReplacesUntrustedInbound() throws {
         let source: [String: Any] = [
             "inbounds": [[

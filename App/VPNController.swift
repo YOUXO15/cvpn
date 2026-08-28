@@ -13,6 +13,17 @@ private final class NotificationObserverToken: @unchecked Sendable {
     }
 }
 
+enum TunnelRoutingPolicy {
+    static func apply(to tunnelProtocol: NETunnelProviderProtocol) {
+        // A packet tunnel with default included routes and explicit transport
+        // exclusions must use the normal routing table. On current iOS,
+        // enforceRoutes can silently discard the default-route traffic in
+        // this configuration even though the VPN reports "connected".
+        tunnelProtocol.enforceRoutes = false
+        tunnelProtocol.includeAllNetworks = false
+    }
+}
+
 @MainActor
 final class VPNController: ObservableObject {
     @Published private(set) var status: NEVPNStatus = .invalid
@@ -76,7 +87,7 @@ final class VPNController: ObservableObject {
         tunnelProtocol.providerConfiguration = [
             AppConstants.providerProfileIDKey: profile.id.uuidString
         ]
-        tunnelProtocol.enforceRoutes = true
+        TunnelRoutingPolicy.apply(to: tunnelProtocol)
         tunnelProtocol.serverAddress = profile.sourceHost ?? "VPN Client"
         tunnelProtocol.disconnectOnSleep = false
         selectedManager.protocolConfiguration = tunnelProtocol
